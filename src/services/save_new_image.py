@@ -1,16 +1,21 @@
+import os
+import tempfile
 import uuid
-from typing import List, Dict
+import shutil
+from fastapi import UploadFile
+from src.models.prop_images import TagResponse
+from .tagging import OpenAIClient, TagGenerator
 
-from src.models.prop_images import Image
+def process_image_upload(file: UploadFile) -> dict:
+    # 1) Write upload to a temp file
+    suffix   = os.path.splitext(file.filename)[1]
+    tmp_path = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}{suffix}")
+    with open(tmp_path, "wb") as buf:
+        shutil.copyfileobj(file.file, buf)
 
-_images: Dict[str, Image] = {}
+    client = OpenAIClient()
+    gen = TagGenerator(client)
+    result = gen.generate(tmp_path)
 
-def create_image(tags: List[str]) -> Image:
-    image_id = str(uuid.uuid4())
-    img = Image(id=image_id, tags=tags)
-    _images[image_id] = img
-    return img
-
-def generate_tags_for_image(content: bytes) -> List[str]:
-    # TODO: hook into ML/API
-    return ["example_tag", "sample_tag"]
+    print("sending:...",result)
+    return result
